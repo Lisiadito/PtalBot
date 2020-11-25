@@ -25,7 +25,7 @@ const interval = 24
 
 function writeChatID(id) {
   try {
-    fs.writeFileSync('chatid.txt', id)
+    fs.writeFileSync('chatid.txt', `${id}`)
   } catch (e) {
     console.error(e)
   }
@@ -90,12 +90,12 @@ function sendRubbishMessage(customInterval) {
   if (chatID && messages.length) {
     messages.forEach(message => {
       bot.sendMessage(chatID, message)
+        .then(res => console.log(res))
+        .catch(err => {
+          console.trace(err)
+          start()
+        })
     })
-      .then(res => console.log(res))
-      .catch(err => {
-        console.trace(err)
-        start()
-      })
   } else if (!chatID) {
     console.error('chatID not set')
   }
