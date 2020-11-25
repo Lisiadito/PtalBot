@@ -89,7 +89,8 @@ function sendRubbishMessage(customInterval) {
 
     if (chatID && messages.length) {
         messages.forEach(message => {
-        	bot.sendMessage(chatID, message)}
+        		bot.sendMessage(chatID, message)
+        	})
         	.then(res => console.log(res))
         	.catch(err => {
         		console.trace(err)
