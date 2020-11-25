@@ -88,7 +88,15 @@ function sendRubbishMessage(customInterval) {
     }
 
     if (chatID && messages.length) {
-        messages.forEach(message => bot.sendMessage(chatID, message))
+        messages.forEach(message => {
+        	bot.sendMessage(chatID, message)}
+        	.then(res => console.log(res))
+        	.catch(err => {
+        		console.trace(err)
+        		start()
+        		return	
+        	})
+        )
     } else if (!chatID){
         console.error('chatID not set')
     }
@@ -117,6 +125,12 @@ function checkNext(hours) {
 function ask() {
     if (chatID) {
         bot.sendMessage(chatID, 'Wer kocht heute?')
+        	.then(res => console.log(res))
+        	.catch(err => {
+				console.trace(err)
+				start()
+            	return	
+			})
     } else {
         console.error('chatID not set')
     }
@@ -124,7 +138,13 @@ function ask() {
 
 function reminder() {
     if (chatID) {
-        bot.sendMessage(chatID, 'Zeit zu kochen')
+		bot.sendMessage(chatID, 'Zeit zu kochen')
+        	.then(res => console.log(res))
+        	.catch(err => {
+				console.trace(err)
+				start()
+            	return	
+			})
     } else {
         console.error('chatID not set')
     }
