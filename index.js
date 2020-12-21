@@ -11,7 +11,12 @@ const fs = require('fs')
 
 dayjs.locale(locale)
 
-let data = ical.sync.parseFile('muellkalender.ics')
+try {
+	let data = ical.sync.parseFile('muellkalender.ics')
+} catch (e) {
+	console.error(e, "could not read calendar file")	
+}
+
 let chatID
 let job
 let job1
