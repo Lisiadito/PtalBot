@@ -54,10 +54,10 @@ function start() {
       job = schedule.scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
     }
     if (!job1) {
-      job1 = schedule.scheduleJob('rubbishjob', '0 15 * * *', ask)
+      job1 = schedule.scheduleJob('ask', '0 15 * * *', ask)
     }
     if (!job2) {
-      job2 = schedule.scheduleJob('rubbishjob', '0 18 * * *', reminder)
+      job2 = schedule.scheduleJob('reminder', '0 18 * * *', reminder)
     }
   }
 
