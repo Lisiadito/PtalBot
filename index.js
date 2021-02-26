@@ -11,17 +11,19 @@ const fs = require('fs')
 
 dayjs.locale(locale)
 
-try {
-	let data = ical.sync.parseFile('muellkalender.ics')
-} catch (e) {
-	console.error(e, "could not read calendar file")	
-}
-
+let data 
 let chatID
 let job
 let job1
 let job2
 const interval = 24
+
+try {
+  data = ical.sync.parseFile('muellkalender.ics')
+  start()
+} catch (e) {
+  console.error(e, "could not read calendar file")	
+}
 
 /**
  * General Functions
@@ -151,5 +153,3 @@ function reminder() {
     console.error('chatID not set')
   }
 }
-
-start()
