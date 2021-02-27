@@ -1,17 +1,20 @@
-process.env['NTBA_FIX_319'] = 1
+process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-const TelegramBot = require('node-telegram-bot-api')
+import TelegramBot from 'node-telegram-bot-api'
+import ical, {CalendarResponse} from 'node-ical'
+import dayjs from 'dayjs'
+import locale from 'dayjs/locale/de'
+import schedule from 'node-schedule'
+import fs from 'fs'
+
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
-const ical = require('node-ical')
-const dayjs = require('dayjs')
-const locale = require('dayjs/locale/de')
-const schedule = require('node-schedule')
-const fs = require('fs')
+
 
 dayjs.locale(locale)
 
-let data 
+let data: CalendarResponse
+let tmpData
 let chatID
 let job
 let job1
@@ -22,7 +25,7 @@ try {
   data = ical.sync.parseFile('muellkalender.ics')
   start()
 } catch (e) {
-  console.error(e, "could not read calendar file")	
+  console.error(dayjs().toString(), e, "could not read calendar file")
 }
 
 /**
@@ -34,7 +37,7 @@ function writeChatID(id) {
   try {
     fs.writeFileSync('chatid.txt', `${id}`)
   } catch (e) {
-    console.error(e)
+    console.error(dayjs().toString(), e)
   }
 }
 
@@ -42,7 +45,7 @@ function readChatID() {
   try {
     return fs.readFileSync('chatid.txt', {encoding: 'utf8'})
   } catch (e) {
-    console.error(e, 'Please provide a chatid.txt file or restart the bot via the /start command')
+    console.error(dayjs().toString(), e, 'Please provide a chatid.txt file or restart the bot via the /start command')
   }
 }
 
@@ -99,22 +102,22 @@ function sendRubbishMessage(customInterval) {
       bot.sendMessage(chatID, message)
         .then(res => console.log(res))
         .catch(err => {
-          console.trace(err)
+          console.trace(dayjs().toString(), err)
           start()
         })
     })
   } else if (!chatID) {
-    console.error('chatID not set')
+    console.error(dayjs().toString(), 'chatID not set')
   }
 }
 
 function checkNext(hours) {
-  data = Object.values(data).filter(date => dayjs(date.start).diff(dayjs(), 'hour') >= 0)
+  tmpData = Object.values(data).filter(date => dayjs(date.start as Date).diff(dayjs(), 'hour') >= 0)
   const messages = []
-  if (data.length <= 0) {
+  if (tmpData.length <= 0) {
     return 'Kalendar enthält keine aktuellen Daten mehr. Downloade den aktuellen.'
   } else {
-    data.forEach(date => {
+    tmpData.forEach(date => {
       if (dayjs(date.start).diff(dayjs(), 'hour') <= hours) {
         messages.push(`Müll rausbringen. ${date.summary.match(/- (.*)/)[1]} wird am ${dayjs(date.start).format('dddd DD.MM.YYYY')} abgeholt.`)
       }
@@ -137,7 +140,7 @@ function ask() {
         start()
       })
   } else {
-    console.error('chatID not set')
+    console.error(dayjs().toString(), 'chatID not set')
   }
 }
 
@@ -150,6 +153,6 @@ function reminder() {
         start()
       })
   } else {
-    console.error('chatID not set')
+    console.error(dayjs().toString(), 'chatID not set')
   }
 }
