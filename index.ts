@@ -1,12 +1,13 @@
 process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-import TelegramBot from 'node-telegram-bot-api'
-import ical, {CalendarResponse} from 'node-ical'
-import dayjs from 'dayjs'
+import * as TelegramBot from 'node-telegram-bot-api'
+import * as ical from 'node-ical'
+import {CalendarResponse} from 'node-ical'
+import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
-import schedule from 'node-schedule'
-import fs from 'fs'
+import * as schedule from 'node-schedule'
+import * as fs from 'fs'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 
