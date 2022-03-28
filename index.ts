@@ -2,7 +2,7 @@ process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
 import * as TelegramBot from 'node-telegram-bot-api'
-import ical, { CalendarResponse, VEvent } from 'node-ical'
+import { CalendarResponse, VEvent, parseFile } from 'node-ical'
 import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { scheduleJob } from 'node-schedule'
@@ -21,7 +21,7 @@ let job2
 const interval = 24
 
 try {
-  data = ical.sync.parseFile('muellkalender.ics')
+  data = parseFile('muellkalender.ics')
   start()
 } catch (e) {
   console.error(dayjs().toString(), e, "could not read calendar file")
