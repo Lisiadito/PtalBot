@@ -1,16 +1,14 @@
 process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-import * as TelegramBot from 'node-telegram-bot-api'
-import * as ical from 'node-ical'
-import {CalendarResponse} from 'node-ical'
-import * as dayjs from 'dayjs'
+import TelegramBot from 'node-telegram-bot-api'
+import ical, { CalendarResponse, VEvent } from 'node-ical'
+import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
-import * as schedule from 'node-schedule'
-import * as fs from 'fs'
+import { scheduleJob } from 'node-schedule'
+import { readFileSync, writeFileSync } from 'fs'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
-
 
 dayjs.locale(locale)
 
@@ -36,7 +34,7 @@ try {
 
 function writeChatID(id) {
   try {
-    fs.writeFileSync('chatid.txt', `${id}`)
+    writeFileSync('chatid.txt', `${id}`)
   } catch (e) {
     console.error(dayjs().toString(), e)
   }
@@ -44,7 +42,7 @@ function writeChatID(id) {
 
 function readChatID() {
   try {
-    return fs.readFileSync('chatid.txt', {encoding: 'utf8'})
+    return readFileSync('chatid.txt', {encoding: 'utf8'})
   } catch (e) {
     console.error(dayjs().toString(), e, 'Please provide a chatid.txt file or restart the bot via the /start command')
   }
@@ -57,13 +55,13 @@ function start() {
   }
   if (chatID) {
     if (!job) {
-      job = schedule.scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
+      job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
     }
     if (!job1) {
-      job1 = schedule.scheduleJob('ask', '0 15 * * *', ask)
+      job1 = scheduleJob('ask', '0 15 * * *', ask)
     }
     if (!job2) {
-      job2 = schedule.scheduleJob('reminder', '0 18 * * *', reminder)
+      job2 = scheduleJob('reminder', '0 18 * * *', reminder)
     }
   }
 
@@ -73,6 +71,10 @@ bot.onText(/\/start/, msg => {
   chatID = msg.chat.id
   writeChatID(chatID)
   bot.sendMessage(chatID, `Bot wird neugestartet.`)
+      .then(res => console.log(res))
+      .catch(err => {
+        console.trace(dayjs().toString(), 'start message', err)
+      })
   start()
 })
 
@@ -103,7 +105,7 @@ function sendRubbishMessage(customInterval) {
       bot.sendMessage(chatID, message)
         .then(res => console.log(res))
         .catch(err => {
-          console.trace(dayjs().toString(), err)
+          console.trace(dayjs().toString(), message, err)
           start()
         })
     })
@@ -113,7 +115,7 @@ function sendRubbishMessage(customInterval) {
 }
 
 function checkNext(hours) {
-  tmpData = Object.values(data).filter(date => dayjs(date.start as Date).diff(dayjs(), 'hour') >= 0)
+  tmpData = Object.values(data).filter((date: VEvent) => dayjs(date.start).diff(dayjs(), 'hour') >= 0)
   const messages = []
   if (tmpData.length <= 0) {
     return 'Kalendar enthält keine aktuellen Daten mehr. Downloade den aktuellen.'
@@ -137,7 +139,7 @@ function ask() {
     bot.sendMessage(chatID, 'Wer kocht heute?')
       .then(res => console.log(res))
       .catch(err => {
-        console.trace(err)
+        console.trace(dayjs().toString(), 'who cooks question', err)
         start()
       })
   } else {
@@ -150,7 +152,7 @@ function reminder() {
     bot.sendMessage(chatID, 'Zeit zu kochen')
       .then(res => console.log(res))
       .catch(err => {
-        console.trace(err)
+        console.trace(dayjs().toString(), 'time to cook message', err)
         start()
       })
   } else {
