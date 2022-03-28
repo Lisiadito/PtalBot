@@ -1,7 +1,7 @@
 process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-import TelegramBot from 'node-telegram-bot-api'
+import * as TelegramBot from 'node-telegram-bot-api'
 import ical, { CalendarResponse, VEvent } from 'node-ical'
 import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
