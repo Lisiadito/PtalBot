@@ -3,7 +3,7 @@ require('dotenv').config()
 
 import * as TelegramBot from 'node-telegram-bot-api'
 import ical, { CalendarResponse, VEvent } from 'node-ical'
-import dayjs from 'dayjs'
+import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
