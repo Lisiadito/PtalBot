@@ -81,9 +81,13 @@ bot.onText(/\/start (.+)/, (msg, match) => {
         })
     start()
   } else {
-    bot.leaveChat(chatID).then(() => {
-      console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
-    })
+    bot.leaveChat(chatID)
+        .then(() => {
+          console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
+        })
+        .catch(e => {
+          console.error(dayjs().toString(), e)
+        })
   }
 
 
@@ -132,7 +136,7 @@ function checkNext(hours) {
     return 'Kalendar enthält keine aktuellen Daten mehr. Downloade den aktuellen.'
   } else {
     tmpData.forEach(date => {
-      if (dayjs(date.start).diff(dayjs(), 'hour') <= hours) {
+      if (date.start && dayjs(date.start).diff(dayjs(), 'hour') <= hours) {
         messages.push(`Müll rausbringen. ${date.summary.match(/- (.*)/)[1]} wird am ${dayjs(date.start).format('dddd DD.MM.YYYY')} abgeholt.`)
       }
     })
