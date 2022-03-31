@@ -5,19 +5,20 @@ import * as TelegramBot from 'node-telegram-bot-api'
 import { CalendarResponse, VEvent, parseFile } from 'node-ical'
 import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
-import { scheduleJob } from 'node-schedule'
+import {Job, scheduleJob} from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
+const botPW: string = process.env.BOTPW
 
 dayjs.locale(locale)
 
 let data: CalendarResponse
 let tmpData
 let chatID
-let job
-let job1
-let job2
+let job: Job
+let job1: Job
+let job2: Job
 const interval = 24
 
 try {
@@ -67,15 +68,25 @@ function start() {
 
 }
 
-bot.onText(/\/start/, msg => {
+bot.onText(/\/start (.+)/, (msg, match) => {
   chatID = msg.chat.id
-  writeChatID(chatID)
-  bot.sendMessage(chatID, `Bot wird neugestartet.`)
-      .then(res => console.log(res))
-      .catch(err => {
-        console.trace(dayjs().toString(), 'start message', err)
-      })
-  start()
+  const pw = match[1]
+
+  if (pw === botPW) {
+    writeChatID(chatID)
+    bot.sendMessage(chatID, `Bot wird neugestartet.`)
+        .then(res => console.log(res))
+        .catch(err => {
+          console.trace(dayjs().toString(), 'start message', err)
+        })
+    start()
+  } else {
+    bot.leaveChat(chatID).then(() => {
+      console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
+    })
+  }
+
+
 })
 
 bot.onText(/\/active/, msg => {
