@@ -59,10 +59,10 @@ function start() {
       job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
     }
     if (!job1) {
-      job1 = scheduleJob('ask', '0 15 * * *', ask)
+      job1 = scheduleJob('ask', '0 11 * * *', ask)
     }
     if (!job2) {
-      job2 = scheduleJob('reminder', '0 18 * * *', reminder)
+      //job2 = scheduleJob('reminder', '0 18 * * *', reminder)
     }
   }
 
@@ -151,7 +151,7 @@ function checkNext(hours) {
 
 function ask() {
   if (chatID) {
-    bot.sendMessage(chatID, 'Wer kocht heute?')
+    bot.sendMessage(chatID, 'Kocht heute jemand?')
       .then(res => console.log(res))
       .catch(err => {
         console.trace(dayjs().toString(), 'who cooks question', err)
