@@ -5,17 +5,27 @@ import * as TelegramBot from 'node-telegram-bot-api'
 import { CalendarResponse, VEvent, parseFile } from 'node-ical'
 import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
-import {Job, scheduleJob} from 'node-schedule'
+import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
+import { isEqual } from 'lodash'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 const botPW: string = process.env.BOTPW
 
 dayjs.locale(locale)
 
+interface ChatInfo {
+  id: number
+  topic_id: number
+  topic: boolean
+}
+
+type BotType = 'food' | 'rubbish'
+
 let data: CalendarResponse
 let tmpData
-let chatID
+let rubbish_chat_id: ChatInfo
+let food_chat_id: ChatInfo
 let job: Job
 let job1: Job
 let job2: Job
@@ -31,57 +41,85 @@ try {
 /**
  * General Functions
  */
-
-
-function writeChatID(id) {
+function writeChatID(id: ChatInfo, type: BotType) {
   try {
-    writeFileSync('chatid.txt', `${id}`)
+    writeFileSync(`${type}_id.json`, JSON.stringify(id))
   } catch (e) {
     console.error(dayjs().toString(), e)
   }
 }
 
-function readChatID() {
+function readChatID(type: BotType): ChatInfo {
   try {
-    return readFileSync('chatid.txt', {encoding: 'utf8'})
+    let json_string = readFileSync(`${type}_id.json`, {encoding: 'utf8'})
+    if (json_string.length) {
+      return JSON.parse(json_string)
+    } else {
+      return JSON.parse('{}')
+    }
   } catch (e) {
-    console.error(dayjs().toString(), e, 'Please provide a chatid.txt file or restart the bot via the /start command')
+    console.error(dayjs().toString(), e, `Please provide a ${type}_id.json file or restart the bot via the /start command`)
   }
 }
 
 function start() {
   console.log('starting')
-  if (!chatID) {
-    chatID = readChatID()
+  if (!food_chat_id || !rubbish_chat_id) {
+    food_chat_id = readChatID('food')
+    rubbish_chat_id = readChatID('rubbish')
   }
-  if (chatID) {
-    if (!job) {
-      job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
-    }
+  if (food_chat_id.id) {
     if (!job1) {
       job1 = scheduleJob('ask', '0 11 * * *', ask)
     }
-    if (!job2) {
+    // if (!job2) {
       //job2 = scheduleJob('reminder', '0 18 * * *', reminder)
+    // }
+  }
+  if (rubbish_chat_id.id) {
+    if (!job) {
+      job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
     }
   }
-
 }
 
+bot.onText(/\/help/, (msg)  => {
+  bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food`')
+})
+
 bot.onText(/\/start (.+)/, (msg, match) => {
-  chatID = msg.chat.id
-  const pw = match[1]
+  const main_id = msg.chat.id
+  const topic_id: number|undefined = msg.message_thread_id
+  const topic = msg.is_topic_message || false
+  const params = match[1].split(/\s+/)
+  const pw = params[0]
+  const botType = params[1] as BotType
+
+  if (!['food', 'rubbish'].includes(botType)) {
+    bot.sendMessage(main_id, 'Please specify if you want to start the `food` or `rubbish` bot. Command details via `/help`', {
+      reply_to_message_id: topic ? topic_id : undefined
+    })
+    return
+  }
 
   if (pw === botPW) {
-    writeChatID(chatID)
-    bot.sendMessage(chatID, `Bot wird neugestartet.`)
+    writeChatID({
+      id: main_id,
+      topic_id: topic_id,
+      topic: topic
+    }, botType)
+
+    bot.sendMessage(main_id, `${botType} bot wird neugestartet.`, {
+      reply_to_message_id: topic ? topic_id : undefined
+    })
         .then(res => console.log(res))
         .catch(err => {
           console.trace(dayjs().toString(), 'start message', err)
         })
     start()
   } else {
-    bot.leaveChat(chatID)
+
+    bot.leaveChat(main_id)
         .then(() => {
           console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
         })
@@ -89,12 +127,26 @@ bot.onText(/\/start (.+)/, (msg, match) => {
           console.error(dayjs().toString(), e)
         })
   }
-
-
 })
 
 bot.onText(/\/active/, msg => {
-  msg.chat.id === chatID ? bot.sendMessage(chatID, 'Bot läuft in diesem Channel') : bot.sendMessage(msg.chat.id, 'Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
+  const chat_info: ChatInfo = {
+    id: msg.chat.id,
+    topic: msg.is_topic_message || false,
+    topic_id: msg.message_thread_id
+  }
+
+  if (isEqual(food_chat_id,chat_info)) {
+    bot.sendMessage(food_chat_id.id, 'Food bot läuft in diesem Channel', {
+      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    })
+  } else if (isEqual(rubbish_chat_id, chat_info)) {
+    bot.sendMessage(rubbish_chat_id.id, 'Rubbish bot läuft in diesem Channel', {
+      reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
+    })
+  } else {
+    bot.sendMessage(msg.chat.id, 'Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
+  }
 })
 
 bot.onText(/\/rubbish_test/, msg => {
@@ -115,17 +167,19 @@ function sendRubbishMessage(customInterval) {
     messages = checkNext(interval)
   }
 
-  if (chatID && messages.length) {
+  if (rubbish_chat_id && messages.length) {
     messages.forEach(message => {
-      bot.sendMessage(chatID, message)
+      bot.sendMessage(rubbish_chat_id.id, message, {
+        reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
+      })
         .then(res => console.log(res))
         .catch(err => {
           console.trace(dayjs().toString(), message, err)
           start()
         })
     })
-  } else if (!chatID) {
-    console.error(dayjs().toString(), 'chatID not set')
+  } else if (!rubbish_chat_id) {
+    console.error(dayjs().toString(), 'rubbish_chat_id not set')
   }
 }
 
@@ -150,27 +204,31 @@ function checkNext(hours) {
  */
 
 function ask() {
-  if (chatID) {
-    bot.sendMessage(chatID, 'Kocht heute jemand?')
+  if (food_chat_id) {
+    bot.sendMessage(food_chat_id.id, 'Kocht heute jemand?', {
+      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    })
       .then(res => console.log(res))
       .catch(err => {
         console.trace(dayjs().toString(), 'who cooks question', err)
         start()
       })
   } else {
-    console.error(dayjs().toString(), 'chatID not set')
+    console.error(dayjs().toString(), 'food_chat_id not set')
   }
 }
 
 function reminder() {
-  if (chatID) {
-    bot.sendMessage(chatID, 'Zeit zu kochen')
+  if (food_chat_id) {
+    bot.sendMessage(food_chat_id.id, 'Zeit zu kochen', {
+      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    })
       .then(res => console.log(res))
       .catch(err => {
         console.trace(dayjs().toString(), 'time to cook message', err)
         start()
       })
   } else {
-    console.error(dayjs().toString(), 'chatID not set')
+    console.error(dayjs().toString(), 'food_chat_id not set')
   }
 }
