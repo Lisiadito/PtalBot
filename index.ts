@@ -7,7 +7,6 @@ import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
-import { isEqual } from 'lodash'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 const botPW: string = process.env.BOTPW
@@ -16,7 +15,7 @@ dayjs.locale(locale)
 
 interface ChatInfo {
   id: number
-  topic_id: number
+  topic_id?: number
   topic: boolean
 }
 
@@ -41,6 +40,11 @@ try {
 /**
  * General Functions
  */
+
+function checkEqual(a: ChatInfo,b: ChatInfo) {
+  return a.id === b.id && a.topic === b.topic && ((a.topic && b.topic && a.topic_id === b.topic_id) || a.topic === false && b.topic === false);
+}
+
 function writeChatID(id: ChatInfo, type: BotType) {
   try {
     writeFileSync(`${type}_id.json`, JSON.stringify(id))
@@ -136,11 +140,11 @@ bot.onText(/\/active/, msg => {
     topic_id: msg.message_thread_id
   }
 
-  if (isEqual(food_chat_id,chat_info)) {
+  if (checkEqual(food_chat_id,chat_info)) {
     bot.sendMessage(food_chat_id.id, 'Food bot läuft in diesem Channel', {
       reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
     })
-  } else if (isEqual(rubbish_chat_id, chat_info)) {
+  } else if (checkEqual(rubbish_chat_id, chat_info)) {
     bot.sendMessage(rubbish_chat_id.id, 'Rubbish bot läuft in diesem Channel', {
       reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
     })
