@@ -262,6 +262,7 @@ function reminder() {
 
 function sendTrainMessage() {
   getTimetableChanges().then(trainInfo => {
+    console.log('train chat id', train_chat_id)
     if (train_chat_id && trainInfo.length) {
 
       trainInfo.forEach(info => {
@@ -270,7 +271,7 @@ function sendTrainMessage() {
         })
           .then(res => console.log(res))
           .catch(err => {
-            console.trace(dayjs().toString(), 'who cooks question', err)
+            console.trace(dayjs().toString(), 'send train message error', err)
             start()
           })
       })
