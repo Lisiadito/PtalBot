@@ -7,7 +7,7 @@ import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
-import { getTimetableChanges } from './test'
+import { getTimetableChanges } from './train'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 const botPW: string = process.env.BOTPW

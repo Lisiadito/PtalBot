@@ -20,6 +20,9 @@ export async function getTimetableChanges() {
 	        // station info
         	// x.getElementsByClassName('o-construction-announcement-title')[0].children[0].textContent
 	        //
+			// date info
+			// x.getElementsByClassName('o-timespan__cp')[0].textContent
+			// 
 	        // closer informations
         	// x.getElementsByClassName('c-list-unordered')[0].children[0].textContent
 	        //
@@ -28,6 +31,7 @@ export async function getTimetableChanges() {
 	        .map((x: any) => [
         	        x.getElementsByClassName('c-construction-announcement-head')[0].children[0].textContent,
                 	x.getElementsByClassName('o-construction-announcement-title')[0].children[0].textContent,
+					x.getElementsByClassName('o-timespan__cp')[0].textContent,
 	                x.getElementsByClassName('c-list-unordered')[0].children[0].textContent
        	 	])
        
