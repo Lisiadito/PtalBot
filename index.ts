@@ -7,6 +7,7 @@ import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
+import { getTimetableChanges } from './test'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 const botPW: string = process.env.BOTPW
@@ -19,12 +20,13 @@ interface ChatInfo {
   topic: boolean
 }
 
-type BotType = 'food' | 'rubbish'
+type BotType = 'food' | 'rubbish' | 'train'
 
 let data: CalendarResponse
 let tmpData
 let rubbish_chat_id: ChatInfo
 let food_chat_id: ChatInfo
+let train_chat_id: ChatInfo
 let job: Job
 let job1: Job
 let job2: Job
@@ -71,6 +73,7 @@ function start() {
   if (!food_chat_id || !rubbish_chat_id) {
     food_chat_id = readChatID('food')
     rubbish_chat_id = readChatID('rubbish')
+    train_chat_id = readChatID('train')
   }
   if (food_chat_id.id) {
     if (!job1) {
@@ -80,15 +83,22 @@ function start() {
       //job2 = scheduleJob('reminder', '0 18 * * *', reminder)
     // }
   }
+  
   if (rubbish_chat_id.id) {
     if (!job) {
       job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
     }
   }
+
+  if (train_chat_id.id) {
+    if (!job) {
+      job2 = scheduleJob('trainjob', '0 0 * * 0', sendTrainMessage)
+    }
+  }
 }
 
 bot.onText(/\/help/, (msg)  => {
-  bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food`')
+  bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food|train`')
 })
 
 bot.onText(/\/start (.+)/, (msg, match) => {
@@ -99,8 +109,8 @@ bot.onText(/\/start (.+)/, (msg, match) => {
   const pw = params[0]
   const botType = params[1] as BotType
 
-  if (!['food', 'rubbish'].includes(botType)) {
-    bot.sendMessage(main_id, 'Please specify if you want to start the `food` or `rubbish` bot. Command details via `/help`', {
+  if (!['food', 'rubbish', 'train'].includes(botType)) {
+    bot.sendMessage(main_id, 'Please specify if you want to start the `food` or `rubbish` or `train` bot. Command details via `/help`', {
       reply_to_message_id: topic ? topic_id : undefined
     })
     return
@@ -148,6 +158,10 @@ bot.onText(/\/active/, msg => {
     bot.sendMessage(rubbish_chat_id.id, 'Rubbish bot läuft in diesem Channel', {
       reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
     })
+  } else if(checkEqual(train_chat_id, chat_info)) {
+    bot.sendMessage(train_chat_id.id, 'Train bot läuft in diesem Channel', {
+      reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
+    })
   } else {
     bot.sendMessage(msg.chat.id, 'Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
   }
@@ -156,6 +170,10 @@ bot.onText(/\/active/, msg => {
 bot.onText(/\/rubbish_test/, msg => {
   // debugging function to check for the next 30 days
   sendRubbishMessage(720)
+})
+
+bot.onText(/\/train_test/, msg => {
+  sendTrainMessage()
 })
 
 /**
@@ -235,4 +253,29 @@ function reminder() {
   } else {
     console.error(dayjs().toString(), 'food_chat_id not set')
   }
+}
+
+
+/*
+* Train function
+*/
+
+function sendTrainMessage() {
+  getTimetableChanges().then(trainInfo => {
+    if (train_chat_id && trainInfo.length) {
+
+      trainInfo.forEach(info => {
+        bot.sendMessage(train_chat_id.id, info.toString(), {
+          reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
+        })
+          .then(res => console.log(res))
+          .catch(err => {
+            console.trace(dayjs().toString(), 'who cooks question', err)
+            start()
+          })
+      })
+    } else if (!train_chat_id) {
+      console.error(dayjs().toString(), 'train_chat_id not set')
+    }
+  })
 }
