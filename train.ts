@@ -9,7 +9,7 @@ export async function getTimetableChanges() {
         	const document = dom.window.document
 
 
-        	// general elemnts filtered
+        	// general elements filtered
         	// Array.from(document.getElementsByClassName("c-constructions")[2].children).filter(x => x.attributes.getNamedItem('data-lines')?.nodeValue.includes('s2'))
 
 	        // on these elements map following
@@ -23,7 +23,7 @@ export async function getTimetableChanges() {
 			// date info
 			// x.getElementsByClassName('o-timespan__cp')[0].textContent
 			// 
-	        // closer informations
+	        // closer information
         	// x.getElementsByClassName('c-list-unordered')[0].children[0].textContent
 	        //
         

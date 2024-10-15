@@ -91,7 +91,7 @@ function start() {
   }
 
   if (train_chat_id.id) {
-    if (!job) {
+    if (!job2) {
       job2 = scheduleJob('trainjob', '0 0 * * 0', sendTrainMessage)
     }
   }
@@ -205,7 +205,7 @@ function sendRubbishMessage(customInterval) {
   }
 }
 
-function checkNext(hours) {
+function checkNext(hours: number) {
   tmpData = Object.values(data).filter((date: VEvent) => dayjs(date.start).diff(dayjs(), 'hour') >= 0)
   const messages = []
   if (tmpData.length <= 0) {
@@ -230,11 +230,20 @@ function ask() {
     bot.sendMessage(food_chat_id.id, 'Kocht heute jemand?', {
       reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
     })
-      .then(res => console.log(res))
-      .catch(err => {
-        console.trace(dayjs().toString(), 'who cooks question', err)
-        start()
-      })
+    .then(res => console.log(res))
+    .catch(err => {
+      console.trace(dayjs().toString(), 'who cooks question', err)
+      start()
+    })
+
+    bot.sendMessage(food_chat_id.id, 'Wer würde heute abend mitessen?', {
+      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    })
+    .then(res => console.log(res))
+    .catch(err => {
+      console.trace(dayjs().toString(), 'who wants food question', err)
+      start()
+    })
   } else {
     console.error(dayjs().toString(), 'food_chat_id not set')
   }
