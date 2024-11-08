@@ -279,7 +279,7 @@ function sendTrainMessage() {
 
         bot.sendMessage(train_chat_id.id, message, {
           reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
-          parse_mode: 'MarkdownV2'
+          parse_mode: 'Markdown'
         })
           .then(res => console.log(res))
           .catch(err => {
