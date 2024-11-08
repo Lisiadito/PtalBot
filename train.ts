@@ -10,7 +10,7 @@ export async function getTimetableChanges() {
 
 
         	// general elements filtered
-        	// Array.from(document.getElementsByClassName("c-constructions")[2].children).filter(x => x.attributes.getNamedItem('data-lines')?.nodeValue.includes('s2'))
+        	// Array.from(document.getElementsByClassName("c-constructions")[2].children).filter(x => x.attributes.getNamedItem('data-lines')?.nodeValue.match(/\bs2\b/g))
 
 	        // on these elements map following
 	        //
@@ -21,17 +21,17 @@ export async function getTimetableChanges() {
         	// x.getElementsByClassName('o-construction-announcement-title')[0].children[0].textContent
 	        //
 			// date info
-			// x.getElementsByClassName('o-timespan__cp')[0].textContent
+			// Array.from(x.getElementsByClassName('o-timespan__cp')).map(t => t.textContent).toString()
 			// 
 	        // closer information
         	// x.getElementsByClassName('c-list-unordered')[0].children[0].textContent
 	        //
         
-		return Array.from(document.getElementsByClassName("c-constructions")[2].children).filter((x: any) => x.attributes.getNamedItem('data-lines')?.nodeValue.includes('s2'))
-	        .map((x: any) => [
+		return Array.from(document.getElementsByClassName("c-constructions")[2].children).filter((x: any) => x.attributes.getNamedItem('data-lines')?.nodeValue.match(/\bs2\b/g))
+	        .map((x) => [
         	        x.getElementsByClassName('c-construction-announcement-head')[0].children[0].textContent,
                 	x.getElementsByClassName('o-construction-announcement-title')[0].children[0].textContent,
-					x.getElementsByClassName('o-timespan__cp')[0].textContent,
+					Array.from(x.getElementsByClassName('o-timespan__cp')).map(t => t.textContent).toString(),
 	                x.getElementsByClassName('c-list-unordered')[0].children[0].textContent
        	 	])
        

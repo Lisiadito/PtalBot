@@ -275,8 +275,11 @@ function sendTrainMessage() {
     if (train_chat_id && trainInfo.length) {
 
       trainInfo.forEach(info => {
-        bot.sendMessage(train_chat_id.id, info.toString(), {
-          reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
+        const message = `${info[0]} \n **${info[1]}** \n *${info[2]}* \n ${info[3]} \n`
+
+        bot.sendMessage(train_chat_id.id, message, {
+          reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
+          parse_mode: 'Markdown'
         })
           .then(res => console.log(res))
           .catch(err => {
