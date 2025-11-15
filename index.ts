@@ -272,6 +272,7 @@ function reminder() {
 function sendTrainMessage() {
   getTimetableChanges().then(trainInfo => {
     console.log('train chat id', train_chat_id)
+    console.log('train info', trainInfo)
     if (train_chat_id && trainInfo.length) {
 
       trainInfo.forEach(info => {
