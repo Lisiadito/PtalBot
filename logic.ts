@@ -1,5 +1,5 @@
 import { CalendarResponse, VEvent } from 'node-ical'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 
 dayjs.locale(locale)
@@ -27,7 +27,8 @@ export function checkNext(data: CalendarResponse, hours: number, now?: dayjs.Day
   } else {
     events.forEach(date => {
       if (dayjs(date.start).diff(currentTime, 'hour') <= hours) {
-        messages.push(`Müll rausbringen. ${date.summary.match(/- (.*)/)[1]} wird am ${dayjs(date.start).format('dddd DD.MM.YYYY')} abgeholt.`)
+        const summary = typeof date.summary === 'string' ? date.summary : date.summary.val
+        messages.push(`Müll rausbringen. ${summary.match(/- (.*)/)![1]} wird am ${dayjs(date.start).format('dddd DD.MM.YYYY')} abgeholt.`)
       }
     })
     return messages

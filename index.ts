@@ -1,17 +1,17 @@
 process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-import * as TelegramBot from 'node-telegram-bot-api'
+import TelegramBot from 'node-telegram-bot-api'
 import { CalendarResponse, parseFile } from 'node-ical'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
 import { getTimetableChanges, Consequence } from './train'
 import { checkEqual, checkNext, ChatInfo, BotType } from './logic'
 
-const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
-const botPW: string = process.env.BOTPW
+const bot = new TelegramBot(process.env.TELEGRAM_API_KEY!, {polling: true})
+const botPW = process.env.BOTPW!
 
 dayjs.locale(locale)
 
@@ -45,15 +45,14 @@ function writeChatID(id: ChatInfo, type: BotType) {
 
 function readChatID(type: BotType): ChatInfo {
   try {
-    let json_string = readFileSync(`${type}_id.json`, {encoding: 'utf8'})
+    const json_string = readFileSync(`${type}_id.json`, {encoding: 'utf8'})
     if (json_string.length) {
       return JSON.parse(json_string)
-    } else {
-      return JSON.parse('{}')
     }
   } catch (e) {
     console.error(dayjs().toString(), e, `Please provide a ${type}_id.json file or restart the bot via the /start command`)
   }
+  return {} as ChatInfo
 }
 
 function start() {
@@ -74,7 +73,7 @@ function start() {
   
   if (rubbish_chat_id.id) {
     if (!job) {
-      job = scheduleJob('rubbishjob', '0 7,19 * * *', sendRubbishMessage)
+      job = scheduleJob('rubbishjob', '0 7,19 * * *', () => sendRubbishMessage())
     }
   }
 
@@ -89,7 +88,8 @@ bot.onText(/\/help/, (msg)  => {
   bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food|train`')
 })
 
-bot.onText(/\/start (.+)/, (msg, match) => {
+bot.onText(/\/start (.+)/, (msg, match: RegExpExecArray | null) => {
+  if (!match) return
   const main_id = msg.chat.id
   const topic_id: number|undefined = msg.message_thread_id
   const topic = msg.is_topic_message || false
@@ -168,17 +168,11 @@ bot.onText(/\/train_test/, msg => {
  * Rubbish Functions
  */
 
-function sendRubbishMessage(customInterval) {
-  let messages
+function sendRubbishMessage(customInterval?: number) {
+  const messages = checkNext(data, Number.isInteger(customInterval) ? customInterval! : interval)
 
-  if (Number.isInteger(customInterval)) {
-    messages = checkNext(data, customInterval)
-  } else {
-    messages = checkNext(data, interval)
-  }
-
-  if (rubbish_chat_id && messages.length) {
-    messages.forEach(message => {
+  if (rubbish_chat_id && typeof messages !== 'string' && messages.length) {
+    messages.forEach((message: string) => {
       bot.sendMessage(rubbish_chat_id.id, message, {
         reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
       })
@@ -266,8 +260,7 @@ function sendTrainMessage() {
   getTimetableChanges().then(trainInfo => {
     console.log('train chat id', train_chat_id)
     console.log('train info', trainInfo)
-    if (train_chat_id && trainInfo.length) {
-
+    if (train_chat_id && trainInfo && trainInfo.length) {
       trainInfo.forEach(info => {
         const message = formatTrainMessage(info)
 

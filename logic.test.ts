@@ -1,6 +1,6 @@
 import { checkEqual, checkNext, ChatInfo } from './logic'
 import { CalendarResponse } from 'node-ical'
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs'
 import 'dayjs/locale/de'
 
 dayjs.locale('de')

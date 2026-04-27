@@ -29,11 +29,11 @@ describe('getTimetableChanges', () => {
     mockedAxios.post.mockResolvedValue(makeResponse([makeConsequence()]))
     const result = await getTimetableChanges()
     expect(result).toHaveLength(1)
-    expect(result[0].title).toBe('Blankenfelde <> Priesterweg')
-    expect(result[0].effect).toBe('REPLACEMENT')
-    expect(result[0].subline).toBe('• Kein S-Bahnverkehr zwischen A und B')
-    expect(result[0].periods).toEqual(['soon period'])
-    expect(result[0].lines).toEqual(['S2'])
+    expect(result![0].title).toBe('Blankenfelde <> Priesterweg')
+    expect(result![0].effect).toBe('REPLACEMENT')
+    expect(result![0].subline).toBe('• Kein S-Bahnverkehr zwischen A und B')
+    expect(result![0].periods).toEqual(['soon period'])
+    expect(result![0].lines).toEqual(['S2'])
   })
 
   it('filters out non-S2 consequences', async () => {
@@ -44,8 +44,8 @@ describe('getTimetableChanges', () => {
     ]))
     const result = await getTimetableChanges()
     expect(result).toHaveLength(2)
-    expect(result[0].title).toBe('Blankenfelde <> Priesterweg')
-    expect(result[1].title).toBe('Multi')
+    expect(result![0].title).toBe('Blankenfelde <> Priesterweg')
+    expect(result![1].title).toBe('Multi')
   })
 
   it('filters out minor effects (non-Erhebliche Einschränkungen)', async () => {
@@ -57,8 +57,8 @@ describe('getTimetableChanges', () => {
     ]))
     const result = await getTimetableChanges()
     expect(result).toHaveLength(2)
-    expect(result[0].effect).toBe('REPLACEMENT')
-    expect(result[1].effect).toBe('NO_SERVICE')
+    expect(result![0].effect).toBe('REPLACEMENT')
+    expect(result![1].effect).toBe('NO_SERVICE')
   })
 
   it('filters out consequences starting more than 14 days from now', async () => {
@@ -68,7 +68,7 @@ describe('getTimetableChanges', () => {
     ]))
     const result = await getTimetableChanges()
     expect(result).toHaveLength(1)
-    expect(result[0].title).toBe('Blankenfelde <> Priesterweg')
+    expect(result![0].title).toBe('Blankenfelde <> Priesterweg')
   })
 
   it('drops far-out periods but keeps nearby ones on the same consequence', async () => {
@@ -80,7 +80,7 @@ describe('getTimetableChanges', () => {
     ]))
     const result = await getTimetableChanges()
     expect(result).toHaveLength(1)
-    expect(result[0].periods).toEqual(['soon'])
+    expect(result![0].periods).toEqual(['soon'])
   })
 
   it('returns empty array when no S2 consequences', async () => {
