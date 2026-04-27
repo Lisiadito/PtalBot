@@ -2,28 +2,20 @@ process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
 import * as TelegramBot from 'node-telegram-bot-api'
-import { CalendarResponse, VEvent, parseFile } from 'node-ical'
+import { CalendarResponse, parseFile } from 'node-ical'
 import * as dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
-import { getTimetableChanges } from './train'
+import { getTimetableChanges, Consequence } from './train'
+import { checkEqual, checkNext, ChatInfo, BotType } from './logic'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY, {polling: true})
 const botPW: string = process.env.BOTPW
 
 dayjs.locale(locale)
 
-interface ChatInfo {
-  id: number
-  topic_id?: number
-  topic: boolean
-}
-
-type BotType = 'food' | 'rubbish' | 'train'
-
 let data: CalendarResponse
-let tmpData
 let rubbish_chat_id: ChatInfo
 let food_chat_id: ChatInfo
 let train_chat_id: ChatInfo
@@ -42,10 +34,6 @@ try {
 /**
  * General Functions
  */
-
-function checkEqual(a: ChatInfo,b: ChatInfo) {
-  return a.id === b.id && a.topic === b.topic && ((a.topic && b.topic && a.topic_id === b.topic_id) || a.topic === false && b.topic === false);
-}
 
 function writeChatID(id: ChatInfo, type: BotType) {
   try {
@@ -184,9 +172,9 @@ function sendRubbishMessage(customInterval) {
   let messages
 
   if (Number.isInteger(customInterval)) {
-    messages = checkNext(customInterval)
+    messages = checkNext(data, customInterval)
   } else {
-    messages = checkNext(interval)
+    messages = checkNext(data, interval)
   }
 
   if (rubbish_chat_id && messages.length) {
@@ -205,20 +193,6 @@ function sendRubbishMessage(customInterval) {
   }
 }
 
-function checkNext(hours: number) {
-  tmpData = Object.values(data).filter((date: VEvent) => dayjs(date.start).diff(dayjs(), 'hour') >= 0)
-  const messages = []
-  if (tmpData.length <= 0) {
-    return 'Kalendar enthält keine aktuellen Daten mehr. Downloade den aktuellen.'
-  } else {
-    tmpData.forEach(date => {
-      if (date.start && dayjs(date.start).diff(dayjs(), 'hour') <= hours) {
-        messages.push(`Müll rausbringen. ${date.summary.match(/- (.*)/)[1]} wird am ${dayjs(date.start).format('dddd DD.MM.YYYY')} abgeholt.`)
-      }
-    })
-    return messages
-  }
-}
 
 /**
  *  Cooking Reminder Functions
@@ -269,6 +243,25 @@ function reminder() {
 * Train function
 */
 
+const EFFECT_LABELS: Record<string, string> = {
+  REPLACEMENT: 'Ersatzverkehr',
+  NO_SERVICE: 'Kein Zugverkehr',
+  NO_STOP: 'Kein Halt',
+  TACT_CHANGE: 'Fahrplanänderung',
+  TRAIN_SERVICE_CHANGED: 'Geänderter Zugverkehr',
+  SHUTTLE_SERVICE: 'Pendelverkehr',
+  SPECIAL: 'Sonstige Einschränkungen',
+}
+
+function formatTrainMessage(c: Consequence): string {
+  const lines = c.lines.join(', ')
+  const periods = c.periods.join('\n')
+  const effect = EFFECT_LABELS[c.effect] ?? c.effect
+  let msg = `${lines} \n *${c.title}* \n _${periods}_ \n\n ${effect}`
+  if (c.subline) msg += `\n\n${c.subline}`
+  return msg
+}
+
 function sendTrainMessage() {
   getTimetableChanges().then(trainInfo => {
     console.log('train chat id', train_chat_id)
@@ -276,7 +269,7 @@ function sendTrainMessage() {
     if (train_chat_id && trainInfo.length) {
 
       trainInfo.forEach(info => {
-        const message = `${info[0]} \n *${info[1]}* \n _${info[2]}_ \n\n ${info[3]} \n`
+        const message = formatTrainMessage(info)
 
         bot.sendMessage(train_chat_id.id, message, {
           reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
