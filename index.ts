@@ -1,7 +1,6 @@
-process.env['NTBA_FIX_319'] = String(1)
 require('dotenv').config()
 
-import TelegramBot from 'node-telegram-bot-api'
+import { Bot, InlineKeyboardMarkup } from 'node-telegram-bot-api'
 import { CalendarResponse, parseFile } from 'node-ical'
 import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
@@ -10,7 +9,7 @@ import { readFileSync, writeFileSync } from 'fs'
 import { getTimetableChanges, Consequence } from './train'
 import { checkEqual, checkNext, ChatInfo, BotType, FoodChoice, FoodVotes, toggleVote, renderFoodMessage } from './logic'
 
-const bot = new TelegramBot(process.env.TELEGRAM_API_KEY!, {polling: true})
+const bot = new Bot(process.env.TELEGRAM_API_KEY!)
 const botPW = process.env.BOTPW!
 
 dayjs.locale(locale)
@@ -84,38 +83,42 @@ function start() {
   }
 }
 
-bot.on('callback_query', (query) => {
+bot.on('callback_query', async ctx => {
+  const query = ctx.callbackQuery!
   const message = query.message
   if (!message || !foodPoll || message.message_id !== foodPoll.messageId) {
-    bot.answerCallbackQuery(query.id, { text: 'Abstimmung abgelaufen' })
+    await ctx.answerCallbackQuery({ text: 'Abstimmung abgelaufen' })
     return
   }
   toggleVote(foodPoll.votes, query.from.id, query.from.first_name, query.data as FoodChoice)
   writeFoodPoll()
-  bot.editMessageText(renderFoodMessage(foodPoll.votes), {
+  bot.api.editMessageText({
     chat_id: message.chat.id,
     message_id: message.message_id,
+    text: renderFoodMessage(foodPoll.votes),
     reply_markup: foodKeyboard
   }).catch(err => console.trace(dayjs().toString(), 'food poll edit', err))
-  bot.answerCallbackQuery(query.id)
+  await ctx.answerCallbackQuery()
 })
 
-bot.onText(/\/help/, (msg)  => {
-  bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food|train`')
-})
+bot.command('help', ctx => ctx.reply('To start the bot run `/start <PASSWORD> rubbish|food|train`'))
 
-bot.onText(/\/start (.+)/, (msg, match: RegExpExecArray | null) => {
-  if (!match) return
+bot.command('start', ctx => {
+  const args = ctx.match as string
+  if (!args) return
+  const msg = ctx.message!
   const main_id = msg.chat.id
   const topic_id: number|undefined = msg.message_thread_id
   const topic = msg.is_topic_message || false
-  const params = match[1].split(/\s+/)
+  const params = args.split(/\s+/)
   const pw = params[0]
   const botType = params[1] as BotType
 
   if (!['food', 'rubbish', 'train'].includes(botType)) {
-    bot.sendMessage(main_id, 'Please specify if you want to start the `food` or `rubbish` or `train` bot. Command details via `/help`', {
-      reply_to_message_id: topic ? topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: main_id,
+      text: 'Please specify if you want to start the `food` or `rubbish` or `train` bot. Command details via `/help`',
+      message_thread_id: topic ? topic_id : undefined
     })
     return
   }
@@ -127,8 +130,10 @@ bot.onText(/\/start (.+)/, (msg, match: RegExpExecArray | null) => {
       topic: topic
     }, botType)
 
-    bot.sendMessage(main_id, `${botType} bot wird neugestartet.`, {
-      reply_to_message_id: topic ? topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: main_id,
+      text: `${botType} bot wird neugestartet.`,
+      message_thread_id: topic ? topic_id : undefined
     })
         .then(res => console.log(res))
         .catch(err => {
@@ -137,7 +142,7 @@ bot.onText(/\/start (.+)/, (msg, match: RegExpExecArray | null) => {
     start()
   } else {
 
-    bot.leaveChat(main_id)
+    bot.api.leaveChat({ chat_id: main_id })
         .then(() => {
           console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
         })
@@ -147,7 +152,8 @@ bot.onText(/\/start (.+)/, (msg, match: RegExpExecArray | null) => {
   }
 })
 
-bot.onText(/\/active/, msg => {
+bot.command('active', ctx => {
+  const msg = ctx.message!
   const chat_info: ChatInfo = {
     id: msg.chat.id,
     topic: msg.is_topic_message || false,
@@ -155,29 +161,41 @@ bot.onText(/\/active/, msg => {
   }
 
   if (checkEqual(food_chat_id,chat_info)) {
-    bot.sendMessage(food_chat_id.id, 'Food bot läuft in diesem Channel', {
-      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: food_chat_id.id,
+      text: 'Food bot läuft in diesem Channel',
+      message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
     })
   } else if (checkEqual(rubbish_chat_id, chat_info)) {
-    bot.sendMessage(rubbish_chat_id.id, 'Rubbish bot läuft in diesem Channel', {
-      reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: rubbish_chat_id.id,
+      text: 'Rubbish bot läuft in diesem Channel',
+      message_thread_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
     })
   } else if(checkEqual(train_chat_id, chat_info)) {
-    bot.sendMessage(train_chat_id.id, 'Train bot läuft in diesem Channel', {
-      reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: train_chat_id.id,
+      text: 'Train bot läuft in diesem Channel',
+      message_thread_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
     })
   } else {
-    bot.sendMessage(msg.chat.id, 'Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
+    ctx.reply('Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
   }
 })
 
-bot.onText(/\/rubbish_test/, msg => {
+bot.command('rubbish_test', () => {
   // debugging function to check for the next 30 days
   sendRubbishMessage(720)
 })
 
-bot.onText(/\/train_test/, msg => {
+bot.command('train_test', () => {
   sendTrainMessage()
+})
+
+// fatal errors (bad token, another instance polling) stop polling: exit so pm2 restarts us
+bot.startPolling().catch(err => {
+  console.error(dayjs().toString(), 'polling stopped', err)
+  process.exit(1)
 })
 
 /**
@@ -189,8 +207,10 @@ function sendRubbishMessage(customInterval?: number) {
 
   if (rubbish_chat_id && typeof messages !== 'string' && messages.length) {
     messages.forEach((message: string) => {
-      bot.sendMessage(rubbish_chat_id.id, message, {
-        reply_to_message_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
+      bot.api.sendMessage({
+        chat_id: rubbish_chat_id.id,
+        text: message,
+        message_thread_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
       })
         .then(res => console.log(res))
         .catch(err => {
@@ -209,7 +229,7 @@ function sendRubbishMessage(customInterval?: number) {
  *
  */
 
-const foodKeyboard: TelegramBot.InlineKeyboardMarkup = {
+const foodKeyboard: InlineKeyboardMarkup = {
   inline_keyboard: [[
     { text: '🍳 Ich koche', callback_data: 'cook' },
     { text: '🍽 Ich esse mit', callback_data: 'eat' },
@@ -241,8 +261,10 @@ function writeFoodPoll() {
 function ask() {
   if (food_chat_id) {
     const votes: FoodVotes = new Map()
-    bot.sendMessage(food_chat_id.id, renderFoodMessage(votes), {
-      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined,
+    bot.api.sendMessage({
+      chat_id: food_chat_id.id,
+      text: renderFoodMessage(votes),
+      message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined,
       reply_markup: foodKeyboard
     })
     .then(res => {
@@ -260,8 +282,10 @@ function ask() {
 
 function reminder() {
   if (food_chat_id) {
-    bot.sendMessage(food_chat_id.id, 'Zeit zu kochen', {
-      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    bot.api.sendMessage({
+      chat_id: food_chat_id.id,
+      text: 'Zeit zu kochen',
+      message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
     })
       .then(res => console.log(res))
       .catch(err => {
@@ -305,8 +329,10 @@ function sendTrainMessage() {
       trainInfo.forEach(info => {
         const message = formatTrainMessage(info)
 
-        bot.sendMessage(train_chat_id.id, message, {
-          reply_to_message_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
+        bot.api.sendMessage({
+          chat_id: train_chat_id.id,
+          text: message,
+          message_thread_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
           parse_mode: 'Markdown'
         })
           .then(res => console.log(res))
