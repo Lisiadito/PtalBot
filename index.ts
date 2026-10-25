@@ -192,6 +192,10 @@ bot.command('train_test', () => {
   sendTrainMessage()
 })
 
+bot.command('food_test', () => {
+  ask()
+})
+
 // fatal errors (bad token, another instance polling) stop polling: exit so pm2 restarts us
 bot.startPolling().catch(err => {
   console.error(dayjs().toString(), 'polling stopped', err)
