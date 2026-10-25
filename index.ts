@@ -8,7 +8,7 @@ import locale from 'dayjs/locale/de'
 import { Job, scheduleJob } from 'node-schedule'
 import { readFileSync, writeFileSync } from 'fs'
 import { getTimetableChanges, Consequence } from './train'
-import { checkEqual, checkNext, ChatInfo, BotType } from './logic'
+import { checkEqual, checkNext, ChatInfo, BotType, FoodChoice, FoodVotes, toggleVote, renderFoodMessage } from './logic'
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_KEY!, {polling: true})
 const botPW = process.env.BOTPW!
@@ -83,6 +83,22 @@ function start() {
     }
   }
 }
+
+bot.on('callback_query', (query) => {
+  const message = query.message
+  if (!message || !foodPoll || message.message_id !== foodPoll.messageId) {
+    bot.answerCallbackQuery(query.id, { text: 'Abstimmung abgelaufen' })
+    return
+  }
+  toggleVote(foodPoll.votes, query.from.id, query.from.first_name, query.data as FoodChoice)
+  writeFoodPoll()
+  bot.editMessageText(renderFoodMessage(foodPoll.votes), {
+    chat_id: message.chat.id,
+    message_id: message.message_id,
+    reply_markup: foodKeyboard
+  }).catch(err => console.trace(dayjs().toString(), 'food poll edit', err))
+  bot.answerCallbackQuery(query.id)
+})
 
 bot.onText(/\/help/, (msg)  => {
   bot.sendMessage(msg.chat.id, 'To start the bot run `/start <PASSWORD> rubbish|food|train`')
@@ -193,23 +209,48 @@ function sendRubbishMessage(customInterval?: number) {
  *
  */
 
+const foodKeyboard: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [[
+    { text: '🍳 Ich koche', callback_data: 'cook' },
+    { text: '🍽 Ich esse mit', callback_data: 'eat' },
+    { text: '❌ Ohne mich', callback_data: 'out' },
+  ]]
+}
+
+// today's poll is saved to food_poll.json so the buttons keep working after a deploy/restart
+let foodPoll: { messageId: number, votes: FoodVotes } | undefined = readFoodPoll()
+
+function readFoodPoll() {
+  try {
+    const { messageId, votes } = JSON.parse(readFileSync('food_poll.json', {encoding: 'utf8'}))
+    return { messageId, votes: new Map(votes) as FoodVotes }
+  } catch {
+    return undefined // no poll sent yet
+  }
+}
+
+function writeFoodPoll() {
+  if (!foodPoll) return
+  try {
+    writeFileSync('food_poll.json', JSON.stringify({ messageId: foodPoll.messageId, votes: [...foodPoll.votes] }))
+  } catch (e) {
+    console.error(dayjs().toString(), e)
+  }
+}
+
 function ask() {
   if (food_chat_id) {
-    bot.sendMessage(food_chat_id.id, 'Kocht heute jemand?', {
-      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+    const votes: FoodVotes = new Map()
+    bot.sendMessage(food_chat_id.id, renderFoodMessage(votes), {
+      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined,
+      reply_markup: foodKeyboard
     })
-    .then(res => console.log(res))
+    .then(res => {
+      foodPoll = { messageId: res.message_id, votes }
+      writeFoodPoll()
+    })
     .catch(err => {
-      console.trace(dayjs().toString(), 'who cooks question', err)
-      start()
-    })
-
-    bot.sendMessage(food_chat_id.id, 'Wer würde heute abend mitessen?', {
-      reply_to_message_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
-    })
-    .then(res => console.log(res))
-    .catch(err => {
-      console.trace(dayjs().toString(), 'who wants food question', err)
+      console.trace(dayjs().toString(), 'food question', err)
       start()
     })
   } else {

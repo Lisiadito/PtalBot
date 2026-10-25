@@ -1,4 +1,4 @@
-import { checkEqual, checkNext, ChatInfo } from './logic'
+import { checkEqual, checkNext, ChatInfo, FoodVotes, toggleVote, renderFoodMessage } from './logic'
 import { CalendarResponse } from 'node-ical'
 import dayjs from 'dayjs'
 import 'dayjs/locale/de'
@@ -104,5 +104,20 @@ describe('checkNext', () => {
     ])
     const result = checkNext(cal, 24, now)
     expect(result[0]).toBe('Müll rausbringen. Gelbe Tonne wird am Samstag 15.06.2024 abgeholt.')
+  })
+})
+
+describe('food votes', () => {
+  it('renders, switches and toggles off votes', () => {
+    const votes: FoodVotes = new Map()
+    expect(renderFoodMessage(votes)).toBe('Wer kocht / isst heute?')
+    toggleVote(votes, 1, 'Anna', 'cook')
+    toggleVote(votes, 2, 'Ben', 'eat')
+    toggleVote(votes, 3, 'Carl', 'eat')
+    toggleVote(votes, 3, 'Carl', 'out') // switch
+    expect(renderFoodMessage(votes)).toBe('Wer kocht / isst heute?\n🍳 Kocht: Anna\n🍽 Isst mit: Ben\n❌ Ohne: Carl\n\n2 Portionen')
+    toggleVote(votes, 1, 'Anna', 'cook') // toggle off
+    toggleVote(votes, 3, 'Carl', 'out')
+    expect(renderFoodMessage(votes)).toBe('Wer kocht / isst heute?\n🍽 Isst mit: Ben\n\n1 Portion')
   })
 })

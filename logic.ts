@@ -34,3 +34,24 @@ export function checkNext(data: CalendarResponse, hours: number, now?: dayjs.Day
     return messages
   }
 }
+
+export type FoodChoice = 'cook' | 'eat' | 'out'
+export type FoodVotes = Map<number, { name: string, choice: FoodChoice }>
+
+// tapping your current choice again clears it
+export function toggleVote(votes: FoodVotes, userId: number, name: string, choice: FoodChoice) {
+  if (votes.get(userId)?.choice === choice) votes.delete(userId)
+  else votes.set(userId, { name, choice })
+}
+
+export function renderFoodMessage(votes: FoodVotes): string {
+  const names = (choice: FoodChoice) => [...votes.values()].filter(v => v.choice === choice).map(v => v.name)
+  const cooks = names('cook'), eaters = names('eat'), out = names('out')
+  const portions = cooks.length + eaters.length
+  let msg = 'Wer kocht / isst heute?'
+  if (cooks.length) msg += `\n🍳 Kocht: ${cooks.join(', ')}`
+  if (eaters.length) msg += `\n🍽 Isst mit: ${eaters.join(', ')}`
+  if (out.length) msg += `\n❌ Ohne: ${out.join(', ')}`
+  if (portions) msg += `\n\n${portions} Portion${portions > 1 ? 'en' : ''}`
+  return msg
+}
