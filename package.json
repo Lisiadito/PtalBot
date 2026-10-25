@@ -25,5 +25,8 @@
     "@types/jest": "^30.0.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9"
+  },
+  "overrides": {
+    "test-exclude": "^8.0.0"
   }
 }
