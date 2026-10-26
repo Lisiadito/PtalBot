@@ -1,13 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es6",
+    "module": "node20",
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
     "types": ["node", "jest"]
   },
   "exclude": [

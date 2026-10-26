@@ -1,6 +1,7 @@
 require('dotenv').config()
 
 import { Bot, InlineKeyboardMarkup } from 'node-telegram-bot-api'
+import { run } from 'node-telegram-bot-api/node'
 import { CalendarResponse, parseFile } from 'node-ical'
 import dayjs from 'dayjs'
 import locale from 'dayjs/locale/de'
@@ -92,18 +93,22 @@ bot.on('callback_query', async ctx => {
   }
   toggleVote(foodPoll.votes, query.from.id, query.from.first_name, query.data as FoodChoice)
   writeFoodPoll()
-  bot.api.editMessageText({
-    chat_id: message.chat.id,
-    message_id: message.message_id,
-    text: renderFoodMessage(foodPoll.votes),
-    reply_markup: foodKeyboard
-  }).catch(err => console.trace(dayjs().toString(), 'food poll edit', err))
+  try {
+    await bot.api.editMessageText({
+      chat_id: message.chat.id,
+      message_id: message.message_id,
+      text: renderFoodMessage(foodPoll.votes),
+      reply_markup: foodKeyboard
+    })
+  } catch (err) {
+    console.trace(dayjs().toString(), 'food poll edit', err)
+  }
   await ctx.answerCallbackQuery()
 })
 
 bot.command('help', ctx => ctx.reply('To start the bot run `/start <PASSWORD> rubbish|food|train`'))
 
-bot.command('start', ctx => {
+bot.command('start', async ctx => {
   const args = ctx.match as string
   if (!args) return
   const msg = ctx.message!
@@ -115,7 +120,7 @@ bot.command('start', ctx => {
   const botType = params[1] as BotType
 
   if (!['food', 'rubbish', 'train'].includes(botType)) {
-    bot.api.sendMessage({
+    await bot.api.sendMessage({
       chat_id: main_id,
       text: 'Please specify if you want to start the `food` or `rubbish` or `train` bot. Command details via `/help`',
       message_thread_id: topic ? topic_id : undefined
@@ -130,29 +135,23 @@ bot.command('start', ctx => {
       topic: topic
     }, botType)
 
-    bot.api.sendMessage({
-      chat_id: main_id,
-      text: `${botType} bot wird neugestartet.`,
-      message_thread_id: topic ? topic_id : undefined
-    })
-        .then(res => console.log(res))
-        .catch(err => {
-          console.trace(dayjs().toString(), 'start message', err)
-        })
+    try {
+      console.log(await bot.api.sendMessage({
+        chat_id: main_id,
+        text: `${botType} bot wird neugestartet.`,
+        message_thread_id: topic ? topic_id : undefined
+      }))
+    } catch (err) {
+      console.trace(dayjs().toString(), 'start message', err)
+    }
     start()
   } else {
-
-    bot.api.leaveChat({ chat_id: main_id })
-        .then(() => {
-          console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
-        })
-        .catch(e => {
-          console.error(dayjs().toString(), e)
-        })
+    await bot.api.leaveChat({ chat_id: main_id })
+    console.log(dayjs().toString(), 'leaving chat due to missing/wrong password')
   }
 })
 
-bot.command('active', ctx => {
+bot.command('active', async ctx => {
   const msg = ctx.message!
   const chat_info: ChatInfo = {
     id: msg.chat.id,
@@ -161,43 +160,36 @@ bot.command('active', ctx => {
   }
 
   if (checkEqual(food_chat_id,chat_info)) {
-    bot.api.sendMessage({
+    await bot.api.sendMessage({
       chat_id: food_chat_id.id,
       text: 'Food bot läuft in diesem Channel',
       message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
     })
   } else if (checkEqual(rubbish_chat_id, chat_info)) {
-    bot.api.sendMessage({
+    await bot.api.sendMessage({
       chat_id: rubbish_chat_id.id,
       text: 'Rubbish bot läuft in diesem Channel',
       message_thread_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
     })
   } else if(checkEqual(train_chat_id, chat_info)) {
-    bot.api.sendMessage({
+    await bot.api.sendMessage({
       chat_id: train_chat_id.id,
       text: 'Train bot läuft in diesem Channel',
       message_thread_id: train_chat_id.topic ? train_chat_id.topic_id : undefined
     })
   } else {
-    ctx.reply('Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
+    await ctx.reply('Bot läuft in einem anderen Channel. Um hier zu verwenden /start tippen.')
   }
 })
 
-bot.command('rubbish_test', () => {
-  // debugging function to check for the next 30 days
-  sendRubbishMessage(720)
-})
+// debugging function to check for the next 30 days
+bot.command('rubbish_test', () => sendRubbishMessage(720))
+bot.command('train_test', () => sendTrainMessage())
+bot.command('food_test', () => ask())
 
-bot.command('train_test', () => {
-  sendTrainMessage()
-})
-
-bot.command('food_test', () => {
-  ask()
-})
-
-// fatal errors (bad token, another instance polling) stop polling: exit so pm2 restarts us
-bot.startPolling().catch(err => {
+// run() stops polling on SIGINT/SIGTERM; exit explicitly since the schedule jobs keep the process alive
+// fatal errors (bad token, another instance polling) also stop polling: exit 1 so pm2 restarts us
+run(bot).then(() => process.exit(0), err => {
   console.error(dayjs().toString(), 'polling stopped', err)
   process.exit(1)
 })
@@ -206,22 +198,22 @@ bot.startPolling().catch(err => {
  * Rubbish Functions
  */
 
-function sendRubbishMessage(customInterval?: number) {
+async function sendRubbishMessage(customInterval?: number) {
   const messages = checkNext(data, Number.isInteger(customInterval) ? customInterval! : interval)
 
   if (rubbish_chat_id && typeof messages !== 'string' && messages.length) {
-    messages.forEach((message: string) => {
-      bot.api.sendMessage({
-        chat_id: rubbish_chat_id.id,
-        text: message,
-        message_thread_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
-      })
-        .then(res => console.log(res))
-        .catch(err => {
-          console.trace(dayjs().toString(), message, err)
-          start()
-        })
-    })
+    for (const message of messages) {
+      try {
+        console.log(await bot.api.sendMessage({
+          chat_id: rubbish_chat_id.id,
+          text: message,
+          message_thread_id: rubbish_chat_id.topic ? rubbish_chat_id.topic_id : undefined
+        }))
+      } catch (err) {
+        console.trace(dayjs().toString(), message, err)
+        start()
+      }
+    }
   } else if (!rubbish_chat_id) {
     console.error(dayjs().toString(), 'rubbish_chat_id not set')
   }
@@ -262,40 +254,39 @@ function writeFoodPoll() {
   }
 }
 
-function ask() {
+async function ask() {
   if (food_chat_id) {
     const votes: FoodVotes = new Map()
-    bot.api.sendMessage({
-      chat_id: food_chat_id.id,
-      text: renderFoodMessage(votes),
-      message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined,
-      reply_markup: foodKeyboard
-    })
-    .then(res => {
+    try {
+      const res = await bot.api.sendMessage({
+        chat_id: food_chat_id.id,
+        text: renderFoodMessage(votes),
+        message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined,
+        reply_markup: foodKeyboard
+      })
       foodPoll = { messageId: res.message_id, votes }
       writeFoodPoll()
-    })
-    .catch(err => {
+    } catch (err) {
       console.trace(dayjs().toString(), 'food question', err)
       start()
-    })
+    }
   } else {
     console.error(dayjs().toString(), 'food_chat_id not set')
   }
 }
 
-function reminder() {
+async function reminder() {
   if (food_chat_id) {
-    bot.api.sendMessage({
-      chat_id: food_chat_id.id,
-      text: 'Zeit zu kochen',
-      message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
-    })
-      .then(res => console.log(res))
-      .catch(err => {
-        console.trace(dayjs().toString(), 'time to cook message', err)
-        start()
-      })
+    try {
+      console.log(await bot.api.sendMessage({
+        chat_id: food_chat_id.id,
+        text: 'Zeit zu kochen',
+        message_thread_id: food_chat_id.topic ? food_chat_id.topic_id : undefined
+      }))
+    } catch (err) {
+      console.trace(dayjs().toString(), 'time to cook message', err)
+      start()
+    }
   } else {
     console.error(dayjs().toString(), 'food_chat_id not set')
   }
@@ -325,28 +316,25 @@ function formatTrainMessage(c: Consequence): string {
   return msg
 }
 
-function sendTrainMessage() {
-  getTimetableChanges().then(trainInfo => {
-    console.log('train chat id', train_chat_id)
-    console.log('train info', trainInfo)
-    if (train_chat_id && trainInfo && trainInfo.length) {
-      trainInfo.forEach(info => {
-        const message = formatTrainMessage(info)
-
-        bot.api.sendMessage({
+async function sendTrainMessage() {
+  const trainInfo = await getTimetableChanges()
+  console.log('train chat id', train_chat_id)
+  console.log('train info', trainInfo)
+  if (train_chat_id && trainInfo && trainInfo.length) {
+    for (const info of trainInfo) {
+      try {
+        console.log(await bot.api.sendMessage({
           chat_id: train_chat_id.id,
-          text: message,
+          text: formatTrainMessage(info),
           message_thread_id: train_chat_id.topic ? train_chat_id.topic_id : undefined,
           parse_mode: 'Markdown'
-        })
-          .then(res => console.log(res))
-          .catch(err => {
-            console.trace(dayjs().toString(), 'send train message error', err)
-            start()
-          })
-      })
-    } else if (!train_chat_id) {
-      console.error(dayjs().toString(), 'train_chat_id not set')
+        }))
+      } catch (err) {
+        console.trace(dayjs().toString(), 'send train message error', err)
+        start()
+      }
     }
-  })
+  } else if (!train_chat_id) {
+    console.error(dayjs().toString(), 'train_chat_id not set')
+  }
 }
