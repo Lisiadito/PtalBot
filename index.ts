@@ -226,11 +226,11 @@ async function sendRubbishMessage(customInterval?: number) {
  */
 
 const foodKeyboard: InlineKeyboardMarkup = {
-  inline_keyboard: [[
-    { text: '🍳 Ich koche', callback_data: 'cook' },
-    { text: '🍽 Ich esse mit', callback_data: 'eat' },
-    { text: '❌ Ohne mich', callback_data: 'out' },
-  ]]
+  inline_keyboard: [
+    [{ text: '🍳 Ich koche', callback_data: 'cook' }],
+    [{ text: '🍽 Ich esse mit', callback_data: 'eat' }],
+    [{ text: '❌ Ohne mich', callback_data: 'out' }],
+  ]
 }
 
 // today's poll is saved to food_poll.json so the buttons keep working after a deploy/restart
